@@ -4,9 +4,15 @@ import java.io.IOException;
 
 public interface Connections<T> {
 
+    boolean connect(String login, String passCode);
+
     boolean send(int connectionId, T msg);
 
-    void send(String channel, T msg);
+    boolean send(String channel, T msg, String messageId);
 
-    void disconnect(int connectionId);
+    boolean disconnect(int connectionId, String messageId);
+
+    boolean subscribe(int id, String destination, String messageId);
+
+    boolean unsubscribe(int id, String destination, String messageId);
 }
