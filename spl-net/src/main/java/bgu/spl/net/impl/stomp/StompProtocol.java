@@ -9,8 +9,8 @@ import javafx.util.Callback;
 
 import java.util.HashMap;
 import java.util.Map;
-
-public class MessagingProtocol implements StompMessagingProtocol {
+//Select the project, then File > ProjectStructure > ProjectSettings > Modules -> sources
+public class StompProtocol implements StompMessagingProtocol {
     private boolean shouldTerminate = false;
     private int connectionId;
     private Connections<String> connections;
@@ -28,10 +28,10 @@ public class MessagingProtocol implements StompMessagingProtocol {
 
         commandResponses = new HashMap<String, Callback<StompMessage, Boolean>>();
         commandResponses.put("CONNECT", (msg) -> {
-            return connections.connect(msg.getHeaders().get("login"), msg.getHeaders().get("password"));
+            return connections.connect(connectionId, msg.getHeaders().get("login"), msg.getHeaders().get("passcode"));
         });
         commandResponses.put("SEND", (msg) -> {
-            return connections.send(msg.getHeaders().get("destination"), msg.getBody(), msg.getHeaders().get("Message-id"));
+            return connections.send(connectionId, msg.getHeaders().get("destination"), msg.getBody(), msg.getHeaders().get("Message-id"));
         });
         commandResponses.put("SUBSCRIBE", (msg) -> {
             return connections.subscribe(connectionId, msg.getHeaders().get("destination"), msg.getHeaders().get("Message-id"));
@@ -67,8 +67,8 @@ public class MessagingProtocol implements StompMessagingProtocol {
     private void handleProblem(StompException stompy) {
         String toSend = "ERROR" + '\n';
         toSend += "message: " + stompy.getProblem() + '\n';
-        if(stompy.getMessage() == null){
-            toSend += '\n'+'\u0000';
+        if (stompy.getMessage() == null) {
+            toSend += '\n' + '\u0000';
             connections.send(connectionId, toSend);
             return;
         }
@@ -84,7 +84,7 @@ public class MessagingProtocol implements StompMessagingProtocol {
             }
             toSend += MessageID + '\n';
         }
-        toSend += '\n' + "----------\n" + stompy.getMessage();
+        toSend += '\n' + "ORIGINAL MESSAGE\n----------\n" + stompy.getMessage();
         connections.send(connectionId, toSend);
     }
 }

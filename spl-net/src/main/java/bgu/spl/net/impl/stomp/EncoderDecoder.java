@@ -15,16 +15,15 @@ public class EncoderDecoder implements MessageEncoderDecoder<String> {
 
     @Override
     public String decodeNextByte(byte nextByte) {
-        if(nextByte == 0){
+        if (length == bytes.length) {
+            bytes = Arrays.copyOf(bytes, length * 2);
+        }
+        bytes[length] = nextByte;
+        length++;
+        if (nextByte == 0) {
             String result = new String(bytes, 0, length, StandardCharsets.UTF_8);
             length = 0;
             return result;
-        }else{
-            if(length==bytes.length){
-                bytes = Arrays.copyOf(bytes, length * 2);
-            }
-            bytes[length]=nextByte;
-            length++;
         }
         return null;
     }

@@ -26,6 +26,8 @@ public class StompCommand {
      */
     public static StompCommand parse(String cmd) throws StompException {
         switch (cmd){
+            case "CONNECTED":    return new StompCommand("CONNECTED");
+            case "ERROR":       return new StompCommand("ERROR");
             case "SEND":        return new StompCommand("SEND");
             case "SUBSCRIBE":   return new StompCommand("SUBSCRIBE");
             case "CONNECT":     return new StompCommand("CONNECT");

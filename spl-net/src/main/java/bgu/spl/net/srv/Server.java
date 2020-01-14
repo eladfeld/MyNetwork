@@ -2,10 +2,13 @@ package bgu.spl.net.srv;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
 import bgu.spl.net.api.MessagingProtocol;
+import bgu.spl.net.api.StompMessagingProtocol;
+import bgu.spl.net.impl.stomp.StompProtocol;
+
 import java.io.Closeable;
 import java.util.function.Supplier;
 
-public interface Server<T> extends Closeable {
+public interface Server extends Closeable {
 
     /**
      * The main loop of the server, Starts listening and handling new clients.
@@ -17,17 +20,16 @@ public interface Server<T> extends Closeable {
      * @param port The port for the server socket
      * @param protocolFactory A factory that creats new MessagingProtocols
      * @param encoderDecoderFactory A factory that creats new MessageEncoderDecoder
-     * @param <T> The Message Object for the protocol
      * @return A new Thread per client server
      */
-    public static <T> Server<T>  threadPerClient(
+    public static  Server threadPerClient(
             int port,
-            Supplier<MessagingProtocol<T> > protocolFactory,
-            Supplier<MessageEncoderDecoder<T> > encoderDecoderFactory) {
+            Supplier<StompProtocol> protocolFactory,
+            Supplier<MessageEncoderDecoder<String> > encoderDecoderFactory) {
 
-        return new BaseServer<T>(port, protocolFactory, encoderDecoderFactory) {
+        return new BaseServer(port, protocolFactory, encoderDecoderFactory) {
             @Override
-            protected void execute(BlockingConnectionHandler<T>  handler) {
+            protected void execute(BlockingConnectionHandler handler) {
                 new Thread(handler).start();
             }
         };
@@ -40,15 +42,14 @@ public interface Server<T> extends Closeable {
      * @param port The port for the server socket
      * @param protocolFactory A factory that creats new MessagingProtocols
      * @param encoderDecoderFactory A factory that creats new MessageEncoderDecoder
-     * @param <T> The Message Object for the protocol
      * @return A new reactor server
      */
-    public static <T> Server<T> reactor(
+    public static  Server reactor(
             int nthreads,
             int port,
-            Supplier<MessagingProtocol<T>> protocolFactory,
-            Supplier<MessageEncoderDecoder<T>> encoderDecoderFactory) {
-        return new Reactor<T>(nthreads, port, protocolFactory, encoderDecoderFactory);
+            Supplier<MessagingProtocol> protocolFactory,
+            Supplier<MessageEncoderDecoder> encoderDecoderFactory) {
+        return new Reactor(nthreads, port, protocolFactory, encoderDecoderFactory);
     }
 
 }

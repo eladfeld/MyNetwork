@@ -12,7 +12,7 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
 
-public class Reactor<T> implements Server<T> {
+public class Reactor<T> implements Server {
 
     private final int port;
     private final Supplier<MessagingProtocol<T>> protocolFactory;
