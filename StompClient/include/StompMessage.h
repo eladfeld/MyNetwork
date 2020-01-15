@@ -9,7 +9,10 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
+#include <boost/algorithm/string.hpp>
 
+using namespace boost;
 using namespace std;
 
 
@@ -18,12 +21,14 @@ private:
     string command;
     unordered_map<string, string> headers;
     string body;
+    static vector<string> split(string s, char delimiter);
 public:
     StompMessage(string cmd, unordered_map<string, string> hdrs, string bdy);
+    StompMessage();
     string toString();
     static StompMessage parse(string msg);
     string getCommand();
-    unordered_map getHeaders();
+    unordered_map<string, string> getHeaders();
     string getBody();
 
 

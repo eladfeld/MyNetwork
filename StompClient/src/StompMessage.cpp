@@ -3,16 +3,44 @@
 //
 
 
+#include <sstream>
+#include <iostream>
 #include "../include/StompMessage.h"
 
+using namespace boost;
 
-string StompMessage::toString() {
-    return nullptr;
+StompMessage::StompMessage(string cmd, unordered_map<string, string> hdrs, string bdy):
+        command(cmd), headers(hdrs),body(bdy){}
+
+StompMessage::StompMessage() {
+
 }
 
 StompMessage  StompMessage::parse(string msg) {
-    return StompMessage();
+    StompMessage output;
+    vector<string> v = split(msg, '\n');
+    output.command = v.at(0);
+    int index = 1;
+    while(index < v.size() && v.at(index) != ""){
+        vector<string> header = split(v.at(index), ':');
+        if(header.size() == 2) output.headers[header.at(0)] = header.at(1);
+        else std::cout<< "illegal header !!"<<v.at(index)<<endl;
+        index++;
+    }
+    while(index < v.size())
+        output.body += v.at(index++) + "\n";
+    output.body += '\0';
+    return output;
 }
+
+string StompMessage::toString() {
+    string output = command + "\n";
+    for(auto &header : headers)
+        output += header.first + ":" + header.second + "\n";
+    output += "\n" + body;
+    return output;
+}
+
 
 string StompMessage::getCommand() {
     return command;
@@ -25,7 +53,13 @@ unordered_map<string, string> StompMessage::getHeaders() {
 string StompMessage::getBody() {
     return body;
 }
-
-StompMessage::StompMessage(string cmd, unordered_map<string, string> hdrs, string bdy):
-command(cmd), headers(hdrs),body(bdy){}
+vector<string> StompMessage::split(string s, char delimiter) {
+    std::stringstream stream(s);
+    vector<string> output;
+    std::string token;
+    while(getline(stream ,token, delimiter)){
+        output.push_back(token);
+    }
+    return output;
+}
 

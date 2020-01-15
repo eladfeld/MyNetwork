@@ -28,7 +28,6 @@ void StompBookClubClient::readFromSocket() {
             cout<<message<<endl;//FOR TESTING PUPOSES
             handleMessage(StompMessage::parse(message));
         }
-
     }
     handler.Close();
 }
