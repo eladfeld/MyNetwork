@@ -21,7 +21,6 @@ private:
     string command;
     unordered_map<string, string> headers;
     string body;
-    static vector<string> split(string s, char delimiter);
 public:
     StompMessage(string cmd, unordered_map<string, string> hdrs, string bdy);
     StompMessage();
@@ -30,6 +29,8 @@ public:
     string getCommand();
     unordered_map<string, string> getHeaders();
     string getBody();
+    static vector<string> split(string s, char delimiter);
+
 
 
 

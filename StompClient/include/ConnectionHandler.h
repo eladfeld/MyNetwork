@@ -13,7 +13,7 @@ using namespace std;
 
 class ConnectionHandler{
 private:
-    const short port;
+    short port;
     const string host;
     boost::asio::io_service ioService;
     tcp::socket sock;
@@ -24,8 +24,10 @@ public:
     ~ConnectionHandler();
 
     void Send(string message);
+    bool Connect();
     string Read();
     void Close();
+    void setHostAndPort(string _host,int _port);
 
 
 };

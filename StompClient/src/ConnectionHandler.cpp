@@ -30,3 +30,23 @@ void ConnectionHandler::Send(string message) {
 void ConnectionHandler::Close() {
     shouldTerminate = true;
 }
+
+bool ConnectionHandler::Connect() {
+    try {
+        tcp::endpoint endpoint(boost::asio::ip::address::from_string(host), port); // the server endpoint
+        boost::system::error_code error;
+        sock.connect(endpoint, error);
+        if (error)
+            throw boost::system::system_error(error);
+    }
+    catch (std::exception& e) {
+        std::cerr << "Connection failed (Error: " << e.what() << ')' << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void ConnectionHandler::setHostAndPort(string _host, int _port) {
+    host=_host;
+    port=_port;
+}

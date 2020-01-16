@@ -2,31 +2,22 @@
 // Created by elad on 13/01/2020.
 //
 
+#include <thread>
 #include "../include/StompBookClubClient.h"
 
-void StompBookClubClient::subscribe(string channel) {
+StompBookClubClient::StompBookClubClient() {
 
 }
 
-void StompBookClubClient::unsubscribe(string channel) {
-
-}
-
-
-
-
-void StompBookClubClient::login(int port, string login, string passcode) {
-
-}
-
-
+StompBookClubClient::~StompBookClubClient() = default;
 
 void StompBookClubClient::readFromSocket() {
     while (!shouldTerminate) {
         string message = handler.Read();
+        cout<<message<<endl;
         if (message != "") {
-            cout<<message<<endl;//FOR TESTING PUPOSES
-            handleMessage(StompMessage::parse(message));
+            cout << message << endl;//FOR TESTING PUPOSES
+            handleStompMessage(StompMessage::parse(message));
         }
     }
     handler.Close();
@@ -34,16 +25,140 @@ void StompBookClubClient::readFromSocket() {
 
 void StompBookClubClient::readFromUser() {
     string command;
-    getline(cin,command);
+    while (true) {
+        getline(std::cin, command);
+        handleCommand(command);
+    }
+}
 
+// REGION Keyboard command handling
+
+void StompBookClubClient::handleCommand(string command) {
+    vector<string> words = StompMessage::split(command, ' ');
+    string commandType = words.at(0);
+    if (commandType == "login" & (words.size() == 4))login(words.at(1), words.at(2), words.at(3));
+    else if (commandType == "join" & (words.size() == 2))subscribe(words.at(1));
+    else if (commandType == "exit" & (words.size() == 2))unsubscribe(words.at(1));
+    else if (commandType == "borrow" & (words.size() >= 3)) requestBorrowBook(words.at(1), getBookName(words));
+    else if (commandType == "add" & (words.size() >= 3)) addBook(words.at(1), getBookName(words));
+    else if (commandType == "return" & (words.size() >= 3)) returnBook(words.at(1), getBookName(words));
+    else if (commandType == "status" & (words.size() == 2)) requestStatus(words.at(1));
+    else if (commandType == "logout" & (words.size() == 1)) disconnect();
+    else cout << "illegal command! try again" << endl;
 
 }
 
+void StompBookClubClient::subscribe(string channel) {
+    unordered_map<string, string> headers;
+    headers["destination"] = channel;
+    headers["receipt"] = to_string(nextReceiptId);
+    headers["id"]=to_string(nextSubscriptionId++);
+    StompMessage msg("SUBSCRIBE", headers, "\0");
+    receipts[to_string(nextReceiptId++)] = msg;
+    handler.Send(msg.toString());
+}
+
+void StompBookClubClient::unsubscribe(string channel) {
+    unordered_map<string, string> headers;
+    headers["destination"] = channel;
+    headers["id"] = to_string(subscriptionIds[channel]);
+    headers["receipt"] = to_string(nextReceiptId);
+    StompMessage msg("UNSUBSCRIBE", headers, "\0");
+    receipts[to_string(nextReceiptId++)] = msg;
+    handler.Send(msg.toString());
+}
+
+void StompBookClubClient::requestBorrowBook(string topic, string bookName) {
+    unordered_map<string, string> headers;
+    headers["destination"] = topic;
+    headers["bookName"] = bookName;
+    StompMessage msg("SEND", headers, name+" wish to borrow "+bookName+"\0");
+    handler.Send(msg.toString());
+}
+
+void StompBookClubClient::login(string server, string login, string passcode) {
+    vector<string> hostAndPort = StompMessage::split(server, ':');
+    if (hostAndPort.size() != 2)cout << "server must be in host:port format";
+    else {
+        string host = hostAndPort.at(0);
+        string port = hostAndPort.at(1);
+        handler.setHostAndPort(host,stoi(port));
+        if (handler.Connect()) {
+            thread userInput(&StompBookClubClient::readFromSocket, this);
+            //userInput.detach(); //might need this line, it was in the stackOverflow page
+            unordered_map<string, string> headers;
+            headers["host"] = host;
+            headers["login"] = login;
+            headers["passcode"] = passcode;
+            StompMessage connectMsg("CONNECT", headers, "\0");
+            handler.Send(connectMsg.toString());
+        }
+    }
+}
+
+void StompBookClubClient::requestStatus(string topic) {
+    unordered_map<string, string> headers;
+    headers["destination"] = topic;
+    StompMessage msg("SEND", headers, "book status\n\0");
+    handler.Send(msg.toString());
+}
+
+void StompBookClubClient::disconnect() {
+    unordered_map<string, string> headers;
+    headers["receipt"] = to_string(nextReceiptId);
+    StompMessage msg("DISCONNECT", headers, "\0");
+    receipts[to_string(nextReceiptId++)] = msg;
+    handler.Send(msg.toString());
+}
+
+
+void StompBookClubClient::addBook(string topic, string bookName) {
+    lock_booksByTopic.lock();
+    booksByTopic[topic].push_back(bookName);
+    lock_booksByTopic.unlock();
+    unordered_map<string, string> headers;
+    headers["destination"] = topic;
+    string body = name + " has added the book " + bookName + "\0";
+    handler.Send(StompMessage("SEND", headers, body).toString());
+}
+
+void StompBookClubClient::returnBook(string topic, string bookName) {
+    lock_booksByTopic.lock();
+    booksByTopic[topic].remove(bookName);
+    lock_booksByTopic.unlock();
+    string lenderName;
+    stack<string> books = bookLenderTrace[bookName];
+    lock_bookLenderTrace.lock();
+    lenderName = books.top();
+    books.pop();
+    lock_bookLenderTrace.unlock();
+    unordered_map<string, string> headers;
+    headers["destination"] = topic;
+    headers["bookName"]=bookName;
+    headers["owner"]=lenderName;
+    string body = "Returning " + bookName + " to " + lenderName + "\0";
+    handler.Send(StompMessage("SEND", headers, body).toString());
+}
+
+string StompBookClubClient::getBookName(vector<string> command) {
+    string bookName;
+    for (int i = 2; i < command.size(); i++)bookName += command.at(i) + " ";
+    bookName = bookName.substr(0, bookName.size() - 1);
+    return bookName;
+}
+
+//END_REGION Keyboard command handling
 
 
 
 
-//handle StompMessage
+
+
+
+
+
+
+//REGION handle StompMessages from server
 void StompBookClubClient::handleStompMessage(StompMessage message) {
     string command = message.getCommand();
     if (command == "CONNECTED")cout << "Login successful" << endl;
@@ -51,6 +166,7 @@ void StompBookClubClient::handleStompMessage(StompMessage message) {
     else if (command == "MESSAGE")handleMessage(message);
     else if (command == "ERROR")handleError(message);
 }
+
 void StompBookClubClient::handleError(StompMessage message) {
     cout << message.toString();
 }
@@ -94,7 +210,7 @@ void StompBookClubClient::handleMessage(StompMessage message) {
         borrowBook(message);
     }
 }
-//end region handle StompMessage
+//END_REGION handle StompMessages from server
 
 
 
@@ -114,7 +230,7 @@ void StompBookClubClient::checkForBook(StompMessage message) {
     string bookName = body.substr(indexOfBookName);
     string topic = message.getHeaders()["destination"];
     cout << topic << " : " << body << endl;
-    vector<string> books = booksByTopic[topic];
+    list<string> books = booksByTopic[topic];
     //;look for the book in the inventory
     for (string book : books) {
         if (book == bookName) {
@@ -132,20 +248,19 @@ void StompBookClubClient::checkForBook(StompMessage message) {
     }
 }
 
+//response to taking
 void StompBookClubClient::lendBook(StompMessage message) {
     string body = message.getBody();
     cout << body << endl;
     if (message.getHeaders()["owner"] == name) {
         string book = message.getHeaders()["bookName"];
         string topic = message.getHeaders()["topic"];
-        vector<string> books = booksByTopic[topic];
-        int position = -1;
-        for (unsigned int i = 0; i < books.size(); i++)if (books.at(i) == book)position = i;
-        books.erase(books.begin()+position);
+        list<string> books = booksByTopic[topic];
+        books.remove(book);
     }
-
 }
 
+//response to someone "has" book
 void StompBookClubClient::borrowBook(StompMessage message) {
     //init message info
     string bookName = message.getHeaders()["bookName"];
@@ -169,18 +284,18 @@ void StompBookClubClient::borrowBook(StompMessage message) {
         }
     }
 }
-
+//response to returning book
 void StompBookClubClient::handleBookReturn(StompMessage message) {
     string topic = message.getHeaders()["destination"];
-    cout<<topic<<" : "<<message.getBody()<<endl;
-    if(message.getHeaders()["owner"]==name){//owner refers to the lender
+    cout << topic << " : " << message.getBody() << endl;
+    if (message.getHeaders()["owner"] == name) {//owner refers to the lender
         string bookName = message.getHeaders()["bookName"];
         booksByTopic[topic].push_back(bookName);
     }
 }
 
 void StompBookClubClient::bookStatus(string channel) {
-    vector<string> books = booksByTopic[channel];
+    list<string> books = booksByTopic[channel];
     string body = name + " : ";
     if (!books.empty()) {
         for (string book : books) {
@@ -193,5 +308,14 @@ void StompBookClubClient::bookStatus(string channel) {
         handler.Send(message.toString());
     }
 }
+
+
+
+
+
+
+
+
+
 //endregion
 
