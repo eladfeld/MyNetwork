@@ -1,8 +1,9 @@
 package bgu.spl.net.srv;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Queue;
+import bgu.spl.net.srv.StompExceptions.StompException;
+
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ConnectionsImpl implements Connections<String> {
@@ -29,10 +30,14 @@ public class ConnectionsImpl implements Connections<String> {
     }
 
     @Override
-    public boolean connect(int connId, String login, String passCode) {
+    public boolean connect(Integer connId, String login, String passCode) {
         if (usersByLogin.containsKey(login)) {
             User user = usersByLogin.get(login);
-            if (user != null && user.isConnected()) {
+            if(!user.getPasscode().equals(passCode)) {
+                handlers.get(connId).send(StompMessage.generateErrorMessage("user " + login + " provided the wrong passcode", null));
+                return false;
+            }
+            if (user != null && !user.isConnected()) {
                 //user not logged in currently
                 user.setConnectionId(connId);
                 user.setConnected(true);
@@ -48,49 +53,68 @@ public class ConnectionsImpl implements Connections<String> {
             usersByLogin.put(login, user);
             usersById.put(connId, user);
         }
-        handlers.get(connId).send(StompMessage.generateMessage("CONNECTED",null,""));
+        handlers.get(connId).send(StompMessage.generateMessage("CONNECTED", new HashMap<String,String>(), ""));
         return true;
     }
 
     @Override
-    public boolean send(int connectionId, String msg) {
-        if(!checkIfUserConnected(connectionId, null))return false;
+    public boolean send(int connectionId,String msg) {
+        StompMessage message = null;
+        try { message = new StompMessage(msg); } catch (StompException e){e.printStackTrace();}
+        if (!checkIfUserConnected(connectionId, null)) return false;
         User user = usersById.get(connectionId);
-        if(user == null || !user.isConnected())return false;
+        if (user == null || !user.isConnected()) return false;
         ConnectionHandler handeler = handlers.get(connectionId);
         if (handeler == null) return false;
+        //String msg = StompMessage.generateMessage("MESSAGE", message.getHeaders(),message.getBody() );
+        System.out.println(msg);
         handeler.send(msg);
         return true;
     }
 
     @Override
-    public boolean send(int connId, String channel, String msg, String messageId) {
-        if(!checkIfUserConnected(connId, null))return false;
+    public boolean send(int connId, String channel, String msg) {
+        StompMessage message = null;
+        try { message = new StompMessage(msg); } catch (StompException e){e.printStackTrace();}
+        if (!checkIfUserConnected(connId, null)) return false;
         Queue<Integer> chanel = channels.get(channel);
         if (chanel == null) return false;
         for (Integer subscriberID : chanel) {
             if (subscriberID == null) return false;
-            handlers.get(subscriberID).send(msg);
+            String msg1 = StompMessage.generateMessage("MESSAGE", message.getHeaders(), message.getBody());
+            System.out.println(msg1);
+            handlers.get(subscriberID).send(msg1);
         }
         return true;
     }
 
     @Override
-    public boolean disconnect(int connectionId, String messageId) {
-        if(!checkIfUserConnected(connectionId, null))return false;
+    public boolean disconnect(int connectionId, String receiptId) {
+        if (!checkIfUserConnected(connectionId, null)) return false;
         User user = usersById.get(connectionId);
-        for(String topic : user.getTopics())
+        for (String topic : user.getTopics())
             channels.get(topic).remove(connectionId);
         user.setConnected(false);
         usersById.remove(connectionId);
-        return true;
+        boolean output =  addHeaderAndSend(connectionId, receiptId);
+        ConnectionHandler userHandler =handlers.get(connectionId);
+        // noted section is intended to fix re-connect issue
+
+        try {
+            userHandler.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        return output;
     }
 
 
     @Override
-    public boolean subscribe(int id, String channel, String messageId) {
+    public boolean subscribe(int id, String channel, String receiptId) {
         System.out.println("client subscibed to channel : " + channel + "!!");
-        if(!checkIfUserConnected(id,null))return false;
+        if (!checkIfUserConnected(id, null) | receiptId == null | channel == null) return false;
         usersById.get(id).getTopics().add(channel);
         Queue<Integer> chanel = channels.get(channel);
         if (chanel == null) {
@@ -98,17 +122,25 @@ public class ConnectionsImpl implements Connections<String> {
             channels.put(channel, chanel);
         }
         chanel.add(id);
+        return addHeaderAndSend(id, receiptId);
+    }
+
+    private boolean addHeaderAndSend(int id, String receiptId) {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("receipt-id",receiptId);
+        handlers.get(id).send(StompMessage.generateMessage("RECEIPT",headers,""+'\u0000').toString());
         return true;
     }
 
     @Override
-    public boolean unsubscribe(int id, String channel, String messageId) {
-        if(checkIfUserConnected(id, null))return false;
-        if(!usersById.get(id).getTopics().remove(channel))return false;
+    public boolean unsubscribe(int id, String channel, String receiptId) {
+        System.out.println("client unsubscibed to channel : " + channel + "!!");
+        if (!checkIfUserConnected(id, null)) return false;
+        if (!usersById.get(id).getTopics().remove(channel)) return false;
         Queue<Integer> chanel = channels.get(channel);
-        if (chanel == null) return false; //@TODO : generate a proper message and send it to the client
+        if ( receiptId == null | channel == null) return false; //@TODO : generate a proper message and send it to the client
         chanel.remove(id);
-        return true;
+        return addHeaderAndSend(id, receiptId);
     }
 
     @Override
@@ -116,10 +148,10 @@ public class ConnectionsImpl implements Connections<String> {
         return handlers;
     }
 
-    private boolean checkIfUserConnected(int id, Integer recipt){
+    private boolean checkIfUserConnected(int id, Integer recipt) {
         User user = usersById.get(id);
-        if(user == null || !user.isConnected()){
-            handlers.get(id).send(StompMessage.generateErrorMessage("user with id : " + id + " disconnected or doesn't exist!" , recipt));
+        if (user == null || !user.isConnected()) {
+            handlers.get(id).send(StompMessage.generateErrorMessage("user with id : " + id + " disconnected or doesn't exist!", recipt));
             return false;
         }
         return true;

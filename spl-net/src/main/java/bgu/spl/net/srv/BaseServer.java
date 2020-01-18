@@ -24,7 +24,7 @@ public abstract class BaseServer implements Server {
             Supplier<StompProtocol> protocolFactory,
             Supplier<MessageEncoderDecoder<String>> encdecFactory) {
 
-        this.nextConnectionId=new AtomicInteger(1);
+        this.nextConnectionId=new AtomicInteger(0);
         this.port = port;
         this.protocolFactory = protocolFactory;
         this.encdecFactory = encdecFactory;

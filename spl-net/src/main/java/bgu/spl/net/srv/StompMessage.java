@@ -1,9 +1,7 @@
 package bgu.spl.net.srv;
 
-import bgu.spl.net.impl.rci.Command;
-import bgu.spl.net.impl.stomp.StompProtocol;
+
 import bgu.spl.net.srv.StompExceptions.StompException;
-import javafx.util.Pair;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -33,15 +31,11 @@ public class StompMessage implements Serializable {
 
     }
 
-    public static String generateMessage(String Command, List<Pair<String, String>> headers, String body) {
+    public static String generateMessage(String Command, Map<String, String> headers, String body) {
         StompMessage msg = new StompMessage();
-        try {
-            msg.command = StompCommand.parse(Command);
-        } catch (StompException e) {
-            e.printStackTrace();
-        }
+        try { msg.command = StompCommand.parse(Command); } catch (StompException e) { e.printStackTrace(); }
         if (headers != null) {
-            for (Pair<String, String> header : headers) {
+            for (Map.Entry<String,String> header : headers.entrySet()) {
                 msg.headers.put(header.getKey(), header.getValue());
             }
         }
@@ -84,9 +78,8 @@ public class StompMessage implements Serializable {
     public String toString() {
         String output = command.getCommandType() + '\n';
         for (Map.Entry<String, String> entry : headers.entrySet())
-            output += entry.getKey() + ":" + entry.getValue() + '\n';
-        output += '\n';
-        output += body;
+            output += entry.getKey() + ":" + entry.getValue() + "\n";
+        output += "\n"+body;
         return output;
     }
 
@@ -112,6 +105,7 @@ public class StompMessage implements Serializable {
             //check if there is a blank line between the headers and the body
             if (afterSplit[index].equals("")) index++;
             //create the body
+            body = "";
             while (index < afterSplit.length) {
                 body += afterSplit[index] + '\n';
                 index++;
