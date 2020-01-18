@@ -14,13 +14,12 @@ using namespace std;
 class ConnectionHandler{
 private:
     short port;
-    const string host;
+    string host;
     boost::asio::io_service ioService;
     tcp::socket sock;
-    bool shouldTerminate;
 
 public:
-    ConnectionHandler(short port, string host);
+    ConnectionHandler();
     ~ConnectionHandler();
 
     void Send(string message);

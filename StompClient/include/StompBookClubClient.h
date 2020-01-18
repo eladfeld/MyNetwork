@@ -15,17 +15,15 @@ using namespace std;
 
 class StompBookClubClient{
 private:
-    mutex lock_receipts;
     mutex lock_booksByTopic;
     mutex lock_bookLenderTrace;
-    mutex lock_requestedBooks;
     ConnectionHandler handler;//<<------------------------------not thread safe
     bool shouldTerminate;
     unordered_map<string, StompMessage> receipts; //<<----------not thread safe
     unordered_map<string,list<string>> booksByTopic; //<<-------not thread safe
     string name;
-    unordered_map<string,std::stack<string>> bookLenderTrace;//<<not thread safe
-    vector<string> requestedBooks; //<<--------------------------not thread safe
+        unordered_map<string,std::stack<string>> bookLenderTrace;//<<not thread safe
+    vector<string> requestedBooks;
     int nextReceiptId;
     int nextSubscriptionId;
     unordered_map<string,int> subscriptionIds;
@@ -49,6 +47,7 @@ private:
     void checkForBook(StompMessage message);
     void lendBook(StompMessage message);
     void run();
+    bool bookNotExist(string topic, string bookName);
 
 
 

@@ -37,7 +37,7 @@ string StompMessage::toString() {
     string output = command + "\n";
     for(auto &header : headers)
         output += header.first + ":" + header.second + "\n";
-    output += "\n" + body;
+    output += "\n" + body+'\0';
     return output;
 }
 
@@ -51,7 +51,9 @@ unordered_map<string, string> StompMessage::getHeaders() {
 }
 
 string StompMessage::getBody() {
-    return body;
+    if(body[0] == '\n')return body.substr(1, body.size()-3);
+    else return body.substr(0, body.size()-2);
+
 }
 vector<string> StompMessage::split(string s, char delimiter) {
     std::stringstream stream(s);
