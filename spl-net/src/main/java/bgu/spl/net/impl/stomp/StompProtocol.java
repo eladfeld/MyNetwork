@@ -1,20 +1,22 @@
 package bgu.spl.net.impl.stomp;
 
 import bgu.spl.net.api.StompMessagingProtocol;
+import bgu.spl.net.srv.Callback;
 import bgu.spl.net.srv.Connections;
-import bgu.spl.net.srv.StompCommand;
 import bgu.spl.net.srv.StompExceptions.StompException;
 import bgu.spl.net.srv.StompMessage;
-import javafx.util.Callback;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
+
 //Select the project, then File > ProjectStructure > ProjectSettings > Modules -> sources
 public class StompProtocol implements StompMessagingProtocol {
     private boolean shouldTerminate = false;
-    private int connectionId;
+    private Integer connectionId;
     private Connections<String> connections;
-    private static Map<String, Callback<StompMessage, Boolean>> commandResponses;
+    private Map<String, Callback<StompMessage, Boolean>> commandResponses;
 
     @Override
     public void start(int connectionId, Connections<String> connections) {
@@ -22,41 +24,43 @@ public class StompProtocol implements StompMessagingProtocol {
         this.connectionId = connectionId;
         this.connections = connections;
     }
+    private Integer getConnectionId(){
+        return connectionId;
+    }
 
     //check for thread safety
     private void initCommandResponses() {
 
         commandResponses = new HashMap<String, Callback<StompMessage, Boolean>>();
         commandResponses.put("CONNECT", (msg) -> {
-            return connections.connect(connectionId, msg.getHeaders().get("login"), msg.getHeaders().get("passcode"));
+            return connections.connect(getConnectionId(), msg.getHeaders().get("login"), msg.getHeaders().get("passcode"));
         });
         commandResponses.put("SEND", (msg) -> {
-            return connections.send(connectionId, msg.getHeaders().get("destination"), msg.getBody(), msg.getHeaders().get("Message-id"));
+            return connections.send(connectionId, msg.getHeaders().get("destination"), msg.toString());
         });
         commandResponses.put("SUBSCRIBE", (msg) -> {
-            return connections.subscribe(connectionId, msg.getHeaders().get("destination"), msg.getHeaders().get("Message-id"));
+            return connections.subscribe(connectionId, msg.getHeaders().get("destination"), msg.getHeaders().get("receipt"));
         });
         commandResponses.put("UNSUBSCRIBE", (msg) -> {
-            return connections.unsubscribe(connectionId, msg.getHeaders().get("destination"), msg.getHeaders().get("Message-id"));
+            return connections.unsubscribe(connectionId, msg.getHeaders().get("destination"), msg.getHeaders().get("receipt"));
         });
         commandResponses.put("DISCONNECT", (msg) -> {
             shouldTerminate = true;
-            return connections.disconnect(connectionId, msg.getHeaders().get("Message-id"));
+            return connections.disconnect(connectionId, msg.getHeaders().get("receipt"));
         });
     }
 
     @Override
     public void process(String msg) {
+        System.out.println(msg);
         StompMessage message = null;
         try {
             message = new StompMessage(msg);
-
+            String command = message.getCommand().getCommandType();
+            commandResponses.get(command).call​(message);
         } catch (StompException stompy) {
             handleProblem(stompy);
         }
-        String command = message.getCommand().getCommandType();
-        commandResponses.get(command).call(message);
-
     }
 
     @Override

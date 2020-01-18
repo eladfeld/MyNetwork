@@ -47,8 +47,9 @@ public interface Server extends Closeable {
     public static  Server reactor(
             int nthreads,
             int port,
-            Supplier<MessagingProtocol> protocolFactory,
-            Supplier<MessageEncoderDecoder> encoderDecoderFactory) {
+            Supplier<StompProtocol> protocolFactory,
+            Supplier<MessageEncoderDecoder<String>> encoderDecoderFactory) {
+
         return new Reactor(nthreads, port, protocolFactory, encoderDecoderFactory);
     }
 

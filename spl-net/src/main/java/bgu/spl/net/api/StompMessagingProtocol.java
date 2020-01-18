@@ -1,6 +1,7 @@
 package bgu.spl.net.api;
 
 import bgu.spl.net.srv.Connections;
+import bgu.spl.net.srv.StompMessage;
 
 public interface StompMessagingProtocol  {
 	/**

@@ -5,11 +5,11 @@ import java.util.Map;
 
 public interface Connections<T> {
 
-    boolean connect(int connId, String login, String passCode);
+    boolean connect(Integer connId, String login, String passCode);
 
     boolean send(int connectionId, T msg);
 
-    boolean send(int connId,String channel, T msg, String messageId);
+    boolean send(int connId,String channel, T msg);
 
     boolean disconnect(int connectionId, String messageId);
 

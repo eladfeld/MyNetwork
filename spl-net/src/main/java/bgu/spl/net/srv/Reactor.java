@@ -1,7 +1,8 @@
 package bgu.spl.net.srv;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
-import bgu.spl.net.api.MessagingProtocol;
+import bgu.spl.net.impl.stomp.StompProtocol;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedSelectorException;
@@ -10,43 +11,47 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-public class Reactor<T> implements Server {
+public class Reactor implements Server {
 
     private final int port;
-    private final Supplier<MessagingProtocol<T>> protocolFactory;
-    private final Supplier<MessageEncoderDecoder<T>> readerFactory;
+    private final Supplier<StompProtocol> protocolFactory;
+    private final Supplier<MessageEncoderDecoder<String>> readerFactory;
     private final ActorThreadPool pool;
     private Selector selector;
-
     private Thread selectorThread;
     private final ConcurrentLinkedQueue<Runnable> selectorTasks = new ConcurrentLinkedQueue<>();
+    private AtomicInteger nextConnectionId;
+
 
     public Reactor(
             int numThreads,
             int port,
-            Supplier<MessagingProtocol<T>> protocolFactory,
-            Supplier<MessageEncoderDecoder<T>> readerFactory) {
+            Supplier<StompProtocol> protocolFactory,
+            Supplier<MessageEncoderDecoder<String>> readerFactory) {
 
         this.pool = new ActorThreadPool(numThreads);
         this.port = port;
         this.protocolFactory = protocolFactory;
         this.readerFactory = readerFactory;
+        nextConnectionId = new AtomicInteger(0);
     }
 
     @Override
     public void serve() {
-	selectorThread = Thread.currentThread();
+
+        selectorThread = Thread.currentThread();
         try (Selector selector = Selector.open();
-                ServerSocketChannel serverSock = ServerSocketChannel.open()) {
+             ServerSocketChannel serverSock = ServerSocketChannel.open()) {
 
             this.selector = selector; //just to be able to close
 
             serverSock.bind(new InetSocketAddress(port));
             serverSock.configureBlocking(false);
             serverSock.register(selector, SelectionKey.OP_ACCEPT);
-			System.out.println("Server started");
+            System.out.println("Server started");
 
             while (!Thread.currentThread().isInterrupted()) {
 
@@ -89,23 +94,30 @@ public class Reactor<T> implements Server {
             });
             selector.wakeup();
         }
-    }
 
+    }
 
     private void handleAccept(ServerSocketChannel serverChan, Selector selector) throws IOException {
         SocketChannel clientChan = serverChan.accept();
         clientChan.configureBlocking(false);
-        final NonBlockingConnectionHandler<T> handler = new NonBlockingConnectionHandler<>(
+
+        StompProtocol protocol = protocolFactory.get();
+        protocol.start(nextConnectionId.incrementAndGet(), ConnectionsImpl.getInstance());
+
+        final NonBlockingConnectionHandler handler = new NonBlockingConnectionHandler(
                 readerFactory.get(),
-                protocolFactory.get(),
+                protocol,
                 clientChan,
                 this);
         clientChan.register(selector, SelectionKey.OP_READ, handler);
+
+        ConnectionsImpl.getInstance().getHandlers().put(nextConnectionId.get(), handler);
+
     }
 
     private void handleReadWrite(SelectionKey key) {
         @SuppressWarnings("unchecked")
-        NonBlockingConnectionHandler<T> handler = (NonBlockingConnectionHandler<T>) key.attachment();
+        NonBlockingConnectionHandler handler = (NonBlockingConnectionHandler) key.attachment();
 
         if (key.isReadable()) {
             Runnable task = handler.continueRead();
@@ -114,7 +126,7 @@ public class Reactor<T> implements Server {
             }
         }
 
-	    if (key.isValid() && key.isWritable()) {
+        if (key.isValid() && key.isWritable()) {
             handler.continueWrite();
         }
     }
