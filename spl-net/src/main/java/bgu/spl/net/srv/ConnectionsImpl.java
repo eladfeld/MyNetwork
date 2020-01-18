@@ -5,6 +5,7 @@ import bgu.spl.net.srv.StompExceptions.StompException;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ConnectionsImpl implements Connections<String> {
 
@@ -16,6 +17,7 @@ public class ConnectionsImpl implements Connections<String> {
     private Map<Integer, User> usersById;
     private Map<Integer, ConnectionHandler<String>> handlers;
     private Map<String, Queue<Integer>> channels;
+    public AtomicInteger nextMessageId;
 
 
     private ConnectionsImpl() {
@@ -23,6 +25,7 @@ public class ConnectionsImpl implements Connections<String> {
         usersByLogin = new HashMap<>();
         channels = new HashMap<>();
         handlers = new HashMap<>();
+        nextMessageId = new AtomicInteger(1);
     }
 
     public static ConnectionsImpl getInstance() {
@@ -33,6 +36,10 @@ public class ConnectionsImpl implements Connections<String> {
     public boolean connect(Integer connId, String login, String passCode) {
         if (usersByLogin.containsKey(login)) {
             User user = usersByLogin.get(login);
+            if(user.isConnected()){
+                handlers.get(connId).send(StompMessage.generateErrorMessage("user " + login + " is already logged in", null));
+                return false;
+            }
             if(!user.getPasscode().equals(passCode)) {
                 handlers.get(connId).send(StompMessage.generateErrorMessage("user " + login + " provided the wrong passcode", null));
                 return false;
@@ -81,6 +88,7 @@ public class ConnectionsImpl implements Connections<String> {
         if (chanel == null) return false;
         for (Integer subscriberID : chanel) {
             if (subscriberID == null) return false;
+            message.getHeaders().put("Message-id",""+nextMessageId.incrementAndGet());
             String msg1 = StompMessage.generateMessage("MESSAGE", message.getHeaders(), message.getBody());
             System.out.println(msg1);
             handlers.get(subscriberID).send(msg1);
@@ -98,15 +106,6 @@ public class ConnectionsImpl implements Connections<String> {
         usersById.remove(connectionId);
         boolean output =  addHeaderAndSend(connectionId, receiptId);
         ConnectionHandler userHandler =handlers.get(connectionId);
-        // noted section is intended to fix re-connect issue
-
-        try {
-            userHandler.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
         return output;
     }
 
