@@ -16,8 +16,5 @@ void getUserInput(){
 int main() {
     StompBookClubClient client;
     client.readFromUser();
-    //thread userInput(std::mem_fun(&StompBookClubClient::readFromUser),client);
-    //userInput.join();
-
     return 0;
 }
