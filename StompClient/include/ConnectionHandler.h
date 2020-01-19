@@ -13,6 +13,8 @@ using namespace std;
 
 class ConnectionHandler{
 private:
+    boost::asio::streambuf buf;
+    size_t read ;
     short port;
     string host;
     boost::asio::io_service ioService;

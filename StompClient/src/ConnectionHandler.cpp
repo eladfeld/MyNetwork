@@ -8,7 +8,7 @@
 using namespace boost;
 
 ConnectionHandler::ConnectionHandler()
-        : port(),host(),ioService(), sock(ioService){}
+        :buf(),read(), port(),host(),ioService(), sock(ioService){}
 
 ConnectionHandler::~ConnectionHandler() {
 
@@ -16,9 +16,10 @@ ConnectionHandler::~ConnectionHandler() {
 
 //read bytes from socket until null char and send corresponding string to client
 string ConnectionHandler::Read() {
-    asio::streambuf buf;
-    asio::read_until(sock, buf, '\0');
-    return boost::asio::buffer_cast<const char *>(buf.data());
+    read = asio::read_until(sock, buf, '\0');
+    string message = boost::asio::buffer_cast<const char *>(buf.data());
+    buf.consume(read);
+    return message;
 }
 
 void ConnectionHandler::Send(string message) {
