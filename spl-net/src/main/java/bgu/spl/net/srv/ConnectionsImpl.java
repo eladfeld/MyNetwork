@@ -4,6 +4,7 @@ import bgu.spl.net.srv.StompExceptions.StompException;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -21,10 +22,10 @@ public class ConnectionsImpl implements Connections<String> {
 
 
     private ConnectionsImpl() {
-        usersById = new HashMap<>();
-        usersByLogin = new HashMap<>();
-        channels = new HashMap<>();
-        handlers = new HashMap<>();
+        usersById = new ConcurrentHashMap<>();
+        usersByLogin = new ConcurrentHashMap<>();
+        channels = new ConcurrentHashMap<>();
+        handlers = new ConcurrentHashMap<>();
         nextMessageId = new AtomicInteger(1);
     }
 
