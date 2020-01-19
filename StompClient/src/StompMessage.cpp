@@ -12,15 +12,13 @@ using namespace boost;
 StompMessage::StompMessage(string cmd, unordered_map<string, string> hdrs, string bdy):
         command(cmd), headers(hdrs),body(bdy){}
 
-StompMessage::StompMessage() {
-
-}
+StompMessage::StompMessage(): command(),headers(),body(){}
 
 StompMessage  StompMessage::parse(string msg) {
     StompMessage output;
     vector<string> v = split(msg, '\n');
     output.command = v.at(0);
-    int index = 1;
+    unsigned int index = 1;
     while(index < v.size() && v.at(index) != ""){
         vector<string> header = split(v.at(index), ':');
         if(header.size() == 2) output.headers[header.at(0)] = header.at(1);

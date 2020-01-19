@@ -8,7 +8,7 @@
 using namespace boost;
 
 ConnectionHandler::ConnectionHandler()
-        : ioService(), sock(ioService){}
+        : port(),host(),ioService(), sock(ioService){}
 
 ConnectionHandler::~ConnectionHandler() {
 

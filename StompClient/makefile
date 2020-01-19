@@ -1,29 +1,24 @@
-CC = g++
-CFLAGS  = -g -Wall -Weffc++ -std=c++11
-LFLAGS  = -L/usr/lib
+CFLAGS:=-c -Wall -Weffc++ -g -std=c++11 -Iinclude
+LDFLAGS:=-lboost_system
 
-# All Targets
 all: StompBookClubClient
+	g++ -pthread -o bin/StompBookClubClient bin/ConnectionHandler.o bin/StompBookClubClient.o bin/StompMessage.o bin/main.o $(LDFLAGS)
 
-# Tool invocations
-# Executable "hello" depends on the files hello.o and run.o.
-StompBookClubClient: bin/StompBookClubClient.o bin/ConnectionHandler.o bin/StompMessage.o
-	@echo 'Building target: StompBookClubClient'
-	@echo 'Invoking: C++ Linker'
-	$(CC) -o bin/hello bin/StompBookClubClient.o bin/Run.o $(LFLAGS)
-	@echo 'Finished building target: hello'
-	@echo ' '
+StompBookClubClient: bin/ConnectionHandler.o bin/StompBookClubClient.o bin/StompMessage.o bin/main.o
 
-# Depends on the source and header files
-bin/StompBookClubClient.o: src/StompBookClubClient.cpp
-	g++ -g -Wall -Weffc++ -std=c++11 -c -Iinclude -o bin/StompBookClubClient.o src/StompBookClubClient.cpp
+bin/main.o: src/main.cpp
+	g++ -pthread $(CFLAGS) -o bin/main.o src/main.cpp
 
 bin/ConnectionHandler.o: src/ConnectionHandler.cpp
-	g++ -g -Wall -Weffc++ -std=c++11 -c -Iinclude -o bin/ConnectionHandler.o src/ConnectionHandler.cpp
+	g++ -pthread $(CFLAGS) -o bin/ConnectionHandler.o src/ConnectionHandler.cpp
+
+bin/StompBookClubClient.o: src/StompBookClubClient.cpp
+	g++ -pthread $(CFLAGS) -o bin/StompBookClubClient.o src/StompBookClubClient.cpp
 
 bin/StompMessage.o: src/StompMessage.cpp
-	g++ -g -Wall -Weffc++ -std=c++11 -c -Iinclude -o bin/StompMessage.o src/StompMessage.cpp
+	g++ -pthread $(CFLAGS) -o bin/StompMessage.o src/StompMessage.cpp
 
-#Clean the build directory
-clean: 
+
+
+clean:
 	rm -f bin/*

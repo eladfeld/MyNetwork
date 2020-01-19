@@ -14,7 +14,7 @@ if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
     add_executable(
             StompClient
-            main.cpp
+            src/main.cpp
             include/StompMessage.h
             include/StompBookClubClient.h
             src/StompMessage.cpp

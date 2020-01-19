@@ -5,9 +5,10 @@
 #include <thread>
 #include "../include/StompBookClubClient.h"
 
-StompBookClubClient::StompBookClubClient() :shouldTerminate(true), nextReceiptId(1), nextSubscriptionId(1){
-
-}
+StompBookClubClient::StompBookClubClient():
+shouldTerminate(true), nextReceiptId(1), nextSubscriptionId(1),lock_booksByTopic(),
+lock_bookLenderTrace(),handler(),receipts(), booksByTopic(), name(),
+bookLenderTrace(),requestedBooks(),subscriptionIds(){}
 
 StompBookClubClient::~StompBookClubClient() = default;
 
@@ -32,9 +33,16 @@ void StompBookClubClient::readFromUser() {
     string command;
     while (true) {
         getline(std::cin, command);
-        if(command == "s")command  = "login 127.0.0.1:7777 eladBaby kapara";
+        if(command == "s")command  = "login 127.0.0.1:7777 elad kapara";
         if(command == "t")command  = "login 127.0.0.1:7777 tBaby kapara";
-        if(command == "r")command  = "login 127.0.0.1:7777 blackMan kapara";
+        if(command == "r")command  = "login 127.0.0.1:7777 BigBoy kapara";
+        if(command == "bye"){
+            if(!shouldTerminate){
+                handleCommand("logout");
+                sleep(1);
+            }
+            break;
+        }
         handleCommand(command);
     }
 }
@@ -48,14 +56,14 @@ void StompBookClubClient::handleCommand(string command) {
         return;
     }
     string commandType = words.at(0);
-    if (commandType == "login" & (words.size() == 4))login(words.at(1), words.at(2), words.at(3));
-    else if (commandType == "join" & (words.size() == 2))subscribe(words.at(1));
-    else if (commandType == "exit" & (words.size() == 2))unsubscribe(words.at(1));
-    else if (commandType == "borrow" & (words.size() >= 3)) requestBorrowBook(words.at(1), getBookName(words));
-    else if (commandType == "add" & (words.size() >= 3)) addBook(words.at(1), getBookName(words));
-    else if (commandType == "return" & (words.size() >= 3)) returnBook(words.at(1), getBookName(words));
-    else if (commandType == "status" & (words.size() == 2)) requestStatus(words.at(1));
-    else if (commandType == "logout" & (words.size() == 1)) disconnect();
+    if ((commandType == "login") & (words.size() == 4))login(words.at(1), words.at(2), words.at(3));
+    else if ((commandType == "join") & (words.size() == 2))subscribe(words.at(1));
+    else if ((commandType == "exit") & (words.size() == 2))unsubscribe(words.at(1));
+    else if ((commandType == "borrow") & (words.size() >= 3)) requestBorrowBook(words.at(1), getBookName(words));
+    else if ((commandType == "add") & (words.size() >= 3)) addBook(words.at(1), getBookName(words));
+    else if ((commandType == "return") & (words.size() >= 3)) returnBook(words.at(1), getBookName(words));
+    else if ((commandType == "status") & (words.size() == 2)) requestStatus(words.at(1));
+    else if ((commandType == "logout") & (words.size() == 1)) disconnect();
     else cout << "illegal command! try again" << endl;
 
 }
@@ -172,7 +180,7 @@ void StompBookClubClient::returnBook(string topic, string bookName) {
 
 string StompBookClubClient::getBookName(vector<string> command) {
     string bookName;
-    for (int i = 2; i < command.size(); i++)bookName += command.at(i) + " ";
+    for (unsigned int i = 2; i < command.size(); i++)bookName += command.at(i) + " ";
     bookName = bookName.substr(0, bookName.size() - 1);
     return bookName;
 }
